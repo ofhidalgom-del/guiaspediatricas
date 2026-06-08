@@ -95,6 +95,24 @@ document.addEventListener('DOMContentLoaded', () => {
   // Variable to store the last generated summary so it can be downloaded as PDF
   let lastGeneratedSummary = '';
 
+  // PediBot configuration: an array of paediatric tips to cycle through
+  const PEDI_MESSAGES = [
+    'Recuerda vacunar a tu hijo según el calendario recomendado. Las vacunas salvan vidas.',
+    'Los bebés deben dormir boca arriba en una superficie firme para prevenir el síndrome de muerte súbita del lactante.',
+    'Promueve la lactancia materna exclusiva durante los primeros seis meses de vida.',
+    'A partir de los seis meses, introduce alimentos sólidos saludables de uno en uno y en pequeñas cantidades.',
+    'El juego al aire libre favorece el desarrollo físico y emocional de los niños.',
+    'Lávate las manos frecuentemente y enseña a tu hijo a hacerlo para prevenir infecciones.',
+    'Limita el tiempo de pantallas y fomenta la lectura y el juego creativo.',
+    'Los niños necesitan al menos 60 minutos de actividad física al día para mantenerse sanos.',
+    'Revisa regularmente el crecimiento y desarrollo de tu hijo con un profesional de salud.',
+    'La alimentación equilibrada y variada ayuda al crecimiento y al desarrollo cognitivo.',
+    'En caso de fiebre persistente o cualquier signo de alarma, consulta al médico sin demoras.'
+  ];
+  let pediBotInterval = null;
+  let pediBotIndex = 0;
+
+
   // Forms and libraries
   const parentGuideForm = document.getElementById('parentGuideForm');
   const doctorGuideForm = document.getElementById('doctorGuideForm');
@@ -207,10 +225,6 @@ document.addEventListener('DOMContentLoaded', () => {
       showSection('doctorLibrary');
     });
 
-    // Navigation for the article summary section
-    articleSummaryNavBtn.addEventListener('click', () => {
-      showSection('articleSummary');
-    });
     // Attach create listeners to the library create buttons (inside library sections)
     parentLibraryCreateBtn.addEventListener('click', () => {
       if (role !== 'owner') return;
@@ -490,48 +504,9 @@ document.addEventListener('DOMContentLoaded', () => {
     attachList.className = 'attachment-list';
     sectionDiv.appendChild(attachList);
 
-    // Controls to move this section up or down
-    const moveControls = document.createElement('div');
-    moveControls.style.display = 'flex';
-    moveControls.style.gap = '8px';
-    moveControls.style.marginTop = '4px';
-    // Move up button
-    const moveUpBtn = document.createElement('button');
-    moveUpBtn.type = 'button';
-    moveUpBtn.textContent = '↑';
-    moveUpBtn.className = 'move-section-up-btn';
-    moveUpBtn.addEventListener('click', () => {
-      const parent = sectionDiv.parentNode;
-      const prev = sectionDiv.previousElementSibling;
-      if (prev) {
-        parent.insertBefore(sectionDiv, prev);
-      }
-    });
-    // Move down button
-    const moveDownBtn = document.createElement('button');
-    moveDownBtn.type = 'button';
-    moveDownBtn.textContent = '↓';
-    moveDownBtn.className = 'move-section-down-btn';
-    moveDownBtn.addEventListener('click', () => {
-      const parent = sectionDiv.parentNode;
-      const next = sectionDiv.nextElementSibling;
-      if (next) {
-        parent.insertBefore(next, sectionDiv);
-      }
-    });
-    moveControls.appendChild(moveUpBtn);
-    moveControls.appendChild(moveDownBtn);
-    // Button to add a new blank section at the end of this form
-    const addAfterBtn = document.createElement('button');
-    addAfterBtn.type = 'button';
-    addAfterBtn.textContent = '+';
-    addAfterBtn.className = 'add-next-section-btn';
-    addAfterBtn.addEventListener('click', () => {
-      // Create a new blank section at the end of the same container
-      createDynamicSection(container);
-    });
-    moveControls.appendChild(addAfterBtn);
-    sectionDiv.appendChild(moveControls);
+    // Removed per-section move controls (arrows and add-after button).  Sections
+    // can now be reordered by drag-and-drop; additional sections can be
+    // created via the global "Agregar apartado" button for each form.
     // Preserve existing attachments
     sectionDiv.existingAttachments = [];
     if (attachments && attachments.length > 0) {
@@ -645,11 +620,15 @@ document.addEventListener('DOMContentLoaded', () => {
     sectionDiv.draggable = true;
     sectionDiv.addEventListener('dragstart', (ev) => {
       draggedSection = sectionDiv;
+      sectionDiv.classList.add('dragging');
       try {
         ev.dataTransfer.setData('text/plain', 'dragging');
       } catch (e) {
         // Some browsers throw if dataTransfer is not available
       }
+    });
+    sectionDiv.addEventListener('dragend', () => {
+      sectionDiv.classList.remove('dragging');
     });
     sectionDiv.addEventListener('dragover', (ev) => {
       ev.preventDefault();
@@ -1009,7 +988,7 @@ document.addEventListener('DOMContentLoaded', () => {
     doctorGuideFormSection.classList.add('hidden');
     parentLibrarySection.classList.add('hidden');
     doctorLibrarySection.classList.add('hidden');
-    articleSummarySection.classList.add('hidden');
+    // The article summary section has been removed, so no need to hide it here
     // Hide creation buttons by default
     parentLibraryCreateBtn.classList.add('hidden');
     doctorLibraryCreateBtn.classList.add('hidden');
@@ -1044,21 +1023,6 @@ document.addEventListener('DOMContentLoaded', () => {
             doctorLibraryCreateBtn.classList.add('hidden');
           }
         }
-        break;
-      case 'articleSummary':
-        // Show the article summary section and clear previous results
-        articleSummarySection.classList.remove('hidden');
-        if (articleSummaryResult) articleSummaryResult.innerHTML = '';
-        if (articleImageResult) articleImageResult.innerHTML = '';
-        // Reset last summary and hide download button on new view
-        lastGeneratedSummary = '';
-        if (downloadSummaryBtn) {
-          downloadSummaryBtn.classList.add('hidden');
-          downloadSummaryBtn.style.display = 'none';
-        }
-        // Hide create buttons when in summary section
-        parentLibraryCreateBtn.classList.add('hidden');
-        doctorLibraryCreateBtn.classList.add('hidden');
         break;
       default:
         break;
@@ -1303,42 +1267,66 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const file = articleFileInput.files[0];
     const ext = file.name.split('.').pop().toLowerCase();
-    // Helper to display summary and image
+    // Helper to display summary.  We no longer generate an image; only the
+    // summary text is shown to the user.  When a summary is created, the
+    // download PDF button will be made visible.
     const displayResults = (summary) => {
       if (articleSummaryResult) {
         articleSummaryResult.textContent = summary;
       }
-      const imgData = createSummaryImage(summary);
-      if (articleImageResult) {
-        articleImageResult.innerHTML = '';
-        const img = document.createElement('img');
-        img.src = imgData;
-        img.alt = 'Imagen resumen';
-        img.style.maxWidth = '100%';
-        articleImageResult.appendChild(img);
-      }
     };
     // Attempt to extract text based on file type
     try {
-      if (ext === 'pdf' || ext === 'doc' || ext === 'docx') {
-        // Read binary data and attempt a naive UTF‑8 decode.  This does not properly
-        // parse PDF or Word files, but provides a fallback when libraries are not
-        // available.  A robust solution would use pdf.js or mammoth.js to extract
-        // text, which cannot be loaded offline in this environment.
+      if (ext === 'doc' || ext === 'docx') {
+        // Use JSZip to extract text from a .docx file.  We read the file
+        // as an ArrayBuffer, unzip it and grab the word/document.xml entry.
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+          const buffer = e.target.result;
+          let text = '';
+          try {
+            const zip = await JSZip.loadAsync(buffer);
+            const docXml = await zip.file('word/document.xml').async('string');
+            // Extract text from <w:t> elements; fallback by stripping tags
+            const matches = docXml.match(/<w:t[^>]*>(.*?)<\/w:t>/gi);
+            if (matches) {
+              text = matches.map((m) => m.replace(/<[^>]+>/g, '')).join(' ');
+            } else {
+              text = docXml.replace(/<[^>]+>/g, ' ');
+            }
+          } catch (err) {
+            console.error(err);
+            alert('No se pudo extraer texto del documento Word.');
+            return;
+          }
+          const summary = generateSummary(text);
+          displayResults(summary);
+          lastGeneratedSummary = summary;
+          if (downloadSummaryBtn) {
+            downloadSummaryBtn.classList.remove('hidden');
+            downloadSummaryBtn.style.display = 'inline-block';
+          }
+        };
+        reader.readAsArrayBuffer(file);
+      } else if (ext === 'pdf') {
+        // PDF extraction is limited; attempt to decode the file to text using
+        // UTF‑8 as a fallback.  Note: proper PDF parsing requires a library
+        // like pdf.js; without it, some PDFs may not produce readable output.
         const reader = new FileReader();
         reader.onload = (e) => {
           const buffer = e.target.result;
           let text = '';
           try {
-            // Decode the ArrayBuffer into a string using UTF‑8.  Some binary
-            // documents embed visible text in plain form; others may yield
-            // unreadable output.
             const decoder = new TextDecoder('utf-8');
             text = decoder.decode(buffer);
           } catch (err) {
             text = '';
           }
-        const summary = generateSummary(text);
+          if (!text.trim()) {
+            alert('No se pudo extraer texto legible del archivo PDF. Conviértalo a texto e inténtelo de nuevo.');
+            return;
+          }
+          const summary = generateSummary(text);
           displayResults(summary);
           lastGeneratedSummary = summary;
           if (downloadSummaryBtn) {
@@ -1594,6 +1582,42 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 
+  /**
+   * Initialise the PediBot helper.  This function attaches event listeners
+   * to the PediBot toggle button and cycles through the array of
+   * paediatric messages every 45 seconds.  Messages only update
+   * when the message container is visible.  Called when the user logs in or
+   * enters as guest.
+   */
+  function startPediBot() {
+    const pediBot = document.getElementById('pediBot');
+    const pediBotToggle = document.getElementById('pediBotToggle');
+    const pediBotMessages = document.getElementById('pediBotMessages');
+    if (!pediBot || !pediBotToggle || !pediBotMessages) return;
+    // Ensure the bot is visible on screen
+    pediBot.classList.remove('hidden');
+    // Toggle the visibility of the message container when clicking the icon
+    pediBotToggle.addEventListener('click', () => {
+      pediBotMessages.classList.toggle('hidden');
+    });
+    // Function to display the next message
+    const showMessage = () => {
+      if (!pediBotMessages.classList.contains('hidden')) {
+        const msg = PEDI_MESSAGES[pediBotIndex];
+        pediBotMessages.innerHTML = `<p>${msg}</p>`;
+        pediBotIndex = (pediBotIndex + 1) % PEDI_MESSAGES.length;
+      }
+    };
+    // Clear any existing interval to avoid duplicates
+    if (pediBotInterval) {
+      clearInterval(pediBotInterval);
+    }
+    // Start interval to update messages every 45 seconds
+    pediBotInterval = setInterval(showMessage, 45000);
+    // Show the first message after a short delay
+    setTimeout(showMessage, 5000);
+  }
+
   // Authentication: initialise login or show app if already logged in
   function initializeAuth() {
     // Hide everything until login is resolved
@@ -1633,6 +1657,8 @@ document.addEventListener('DOMContentLoaded', () => {
     loginSection.classList.add('hidden');
     // Show objective section by default
     showSection('objective');
+    // Start the PediBot when the app is shown for the first time
+    startPediBot();
   }
 
   // Logout: clear session and return to login screen

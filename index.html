@@ -42,7 +42,7 @@
         <button id="objectiveBtn">Objetivo</button>
         <button id="parentLibraryNavBtn">Guías para padres</button>
         <button id="doctorLibraryNavBtn">Guías para médicos</button>
-        <button id="articleSummaryNavBtn">Resumen de artículos</button>
+        <!-- La opción de Resumen de artículos se eliminó -->
         <button id="logoutBtn" class="hidden">Cerrar sesión</button>
       </div>
 
@@ -121,18 +121,15 @@
         </div>
       </section>
 
-      <!-- Article summary section -->
-      <section id="articleSummarySection" class="hidden">
-        <h2>Resumen de artículos</h2>
-        <p>Sube un archivo de texto, PDF o Word para generar un resumen práctico y una imagen con la información más importante.</p>
-        <!-- Allow uploading of PDFs and Word documents in addition to text files.  -->
-        <input type="file" id="articleFileInput" accept=".txt,.md,.json,.log,.pdf,.doc,.docx" />
-        <button type="button" id="generateSummaryBtn" class="add-section-btn" style="margin-top: 10px;">Generar resumen</button>
-        <div id="articleSummaryResult" style="margin-top: 20px;"></div>
-        <div id="articleImageResult" style="margin-top: 20px;"></div>
-        <!-- Button to download summary as PDF; hidden until a summary is generated -->
-        <button id="downloadSummaryBtn" class="add-section-btn hidden" style="margin-top: 10px; display: none;">Descargar resumen (PDF)</button>
-      </section>
+      <!-- La sección de Resumen de artículos se eliminó por solicitud del usuario. -->
+
+      <!-- PediBot: small pediatric helper that delivers periodic messages -->
+      <div id="pediBot" class="hidden">
+        <div id="pediBotToggle" class="pedi-bot-toggle" title="PediBot">
+          👶
+        </div>
+        <div id="pediBotMessages" class="pedi-bot-messages hidden"></div>
+      </div>
     </main>
 
     <footer>
@@ -141,6 +138,8 @@
         individual. Ante signos de alarma consulte con un profesional de salud.
       </p>
     </footer>
+    <!-- Load JSZip for .docx text extraction (must be loaded before app.js) -->
+    <script src="jszip.min.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

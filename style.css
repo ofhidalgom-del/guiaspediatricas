@@ -438,6 +438,59 @@ section {
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.18);
 }
 
+/* Highlight the section being dragged */
+.dynamic-section.dragging {
+  opacity: 0.6;
+  border-style: dashed;
+}
+
+/* PediBot styles */
+#pediBot {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 1000;
+}
+
+.pedi-bot-toggle {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #FFECB3, #F8BBD0, #BBDEFB, #B2DFDB);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  font-size: 32px;
+  user-select: none;
+}
+
+.pedi-bot-messages {
+  position: absolute;
+  bottom: 70px;
+  right: 0;
+  width: 260px;
+  max-height: 300px;
+  overflow-y: auto;
+  background-color: #fdfdfd;
+  background-image:
+    linear-gradient(120deg, #FFE0B2, #F8BBD0, #BBDEFB, #B2DFDB),
+    radial-gradient(circle at 15px 15px, rgba(255, 255, 255, 0.6) 2px, transparent 3px),
+    radial-gradient(circle at 45px 45px, rgba(255, 255, 255, 0.6) 3px, transparent 4px);
+  background-size: 400% 400%, 60px 60px, 80px 80px;
+  border-radius: 12px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+  padding: 12px;
+  font-size: 0.9rem;
+  color: #333;
+}
+
+.pedi-bot-messages p {
+  margin: 0 0 6px;
+  line-height: 1.3;
+}
+
 /* Give dynamic sections a subtle pastel confetti background similar to the header */
 .dynamic-section {
   /* Align the dynamic section background with the header aesthetic.  Use the
