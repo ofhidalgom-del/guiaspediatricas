@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Update the document title to the new app name -->
+    <!-- Simplify the page title to focus on the app name -->
+    <title>Guías pediátricas</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+  <header>
+    <!-- Updated header with new title and paediatric theme.  The application name is "Guías pediátricas" per user request.  -->
+    <h1>Guías&nbsp;pediátricas</h1>
+    <!-- Keep only the author tagline below -->
+    <p class="author-tagline">Elaborado por Dr.&nbsp;Oscar Hidalgo Mora – Pediatra</p>
+  </header>
+
+    <!-- Login section -->
+    <section id="loginSection">
+      <h2>Bienvenido a Guías Pediátricas</h2>
+      <div id="passwordSetup" class="hidden">
+        <p>Configure el usuario y contraseña de administrador:</p>
+        <input type="text" id="setupUsername" placeholder="Nombre de usuario" />
+        <input type="password" id="setupPassword" placeholder="Nueva contraseña" />
+        <button id="setPasswordBtn">Guardar credenciales</button>
+      </div>
+      <div id="loginForm" class="hidden">
+        <p>Ingrese su usuario y contraseña:</p>
+        <input type="text" id="loginUsername" placeholder="Nombre de usuario" />
+        <input type="password" id="loginPassword" placeholder="Contraseña" />
+        <button id="loginBtn">Iniciar sesión</button>
+        <button id="guestBtn">Entrar como invitado</button>
+        <p id="loginError" class="error-message hidden">Usuario o contraseña incorrectos</p>
+      </div>
+    </section>
+
+    <main>
+      <!-- Navigation buttons -->
+      <div class="nav-buttons" id="navButtons">
+        <!-- Primary navigation -->
+        <button id="objectiveBtn">Objetivo</button>
+        <button id="parentLibraryNavBtn">Guías para padres</button>
+        <button id="doctorLibraryNavBtn">Guías para médicos</button>
+        <button id="articleSummaryNavBtn">Resumen de artículos</button>
+        <button id="logoutBtn" class="hidden">Cerrar sesión</button>
+      </div>
+
+      <!-- Objective section -->
+      <section id="objectiveSection" class="hidden">
+        <h2>Objetivo</h2>
+        <ul class="objective-list">
+          <li>Recopilar documentos prácticos dirigidos a médicos para la educación de padres y cuidadores, sobre las principales patologías pediátricas vistas en consulta de atención primaria.</li>
+          <li><strong>IMPORTANTE:</strong> Este proyecto está alineado con principios de alfabetización en salud: la OMS define la alfabetización en salud como la capacidad de acceder, comprender, evaluar y usar información y servicios para promover la salud y el bienestar.</li>
+        </ul>
+      </section>
+
+      <!-- Parent guide creation form -->
+      <section id="parentGuideFormSection" class="hidden">
+        <h2>Nueva guía para padres</h2>
+        <form id="parentGuideForm">
+          <div class="form-group">
+            <label for="parentTitle">Título de la guía</label>
+            <input type="text" id="parentTitle" name="parentTitle" required />
+          </div>
+          <div class="form-group">
+            <label for="parentCategory">Categoría</label>
+            <select id="parentCategory" name="parentCategory" required>
+              <option value="">-- Seleccione --</option>
+            </select>
+          </div>
+          <!-- Container for dynamic sections -->
+          <div id="parentSectionsContainer" class="sections-container"></div>
+          <button type="button" id="addParentSectionBtn" class="add-section-btn">Agregar apartado</button>
+          <button type="submit" id="saveParentGuideBtn">Guardar guía</button>
+          <button type="button" id="cancelParentEditBtn" class="hidden">Cancelar</button>
+        </form>
+      </section>
+
+      <!-- Doctor guide creation form -->
+      <section id="doctorGuideFormSection" class="hidden">
+        <h2>Nueva guía para médicos</h2>
+        <form id="doctorGuideForm">
+          <div class="form-group">
+            <label for="doctorTitle">Título de la guía</label>
+            <input type="text" id="doctorTitle" name="doctorTitle" required />
+          </div>
+          <div class="form-group">
+            <label for="doctorCategory">Categoría</label>
+            <select id="doctorCategory" name="doctorCategory" required>
+              <option value="">-- Seleccione --</option>
+            </select>
+          </div>
+          <!-- Dynamic sections container for doctor guides -->
+          <div id="doctorSectionsContainer" class="sections-container"></div>
+          <button type="button" id="addDoctorSectionBtn" class="add-section-btn">Agregar apartado</button>
+          <button type="submit" id="saveDoctorGuideBtn">Guardar guía</button>
+          <button type="button" id="cancelDoctorEditBtn" class="hidden">Cancelar</button>
+        </form>
+      </section>
+
+      <!-- Parent library section -->
+      <section id="parentLibrarySection" class="hidden">
+        <h2>Biblioteca - Guías para padres</h2>
+        <!-- Create button inside the parent library, only visible for el propietario -->
+        <button id="parentLibraryCreateBtn" class="library-create-btn hidden">Nueva guía</button>
+        <p class="library-instruction">Seleccione una categoría para ver sus guías.</p>
+        <div id="parentLibraryFolders">
+          <!-- Parent guide category folders will be appended here -->
+        </div>
+      </section>
+
+      <!-- Doctor library section -->
+      <section id="doctorLibrarySection" class="hidden">
+        <h2>Biblioteca - Guías para médicos</h2>
+        <!-- Create button inside the doctor library, only visible for el propietario -->
+        <button id="doctorLibraryCreateBtn" class="library-create-btn hidden">Nueva guía</button>
+        <p class="library-instruction">Seleccione una categoría para ver sus guías.</p>
+        <div id="doctorLibraryFolders">
+          <!-- Doctor guide category folders will be appended here -->
+        </div>
+      </section>
+
+      <!-- Article summary section -->
+      <section id="articleSummarySection" class="hidden">
+        <h2>Resumen de artículos</h2>
+        <p>Sube un archivo de texto, PDF o Word para generar un resumen práctico y una imagen con la información más importante.</p>
+        <!-- Allow uploading of PDFs and Word documents in addition to text files.  -->
+        <input type="file" id="articleFileInput" accept=".txt,.md,.json,.log,.pdf,.doc,.docx" />
+        <button type="button" id="generateSummaryBtn" class="add-section-btn" style="margin-top: 10px;">Generar resumen</button>
+        <div id="articleSummaryResult" style="margin-top: 20px;"></div>
+        <div id="articleImageResult" style="margin-top: 20px;"></div>
+        <!-- Button to download summary as PDF; hidden until a summary is generated -->
+        <button id="downloadSummaryBtn" class="add-section-btn hidden" style="margin-top: 10px; display: none;">Descargar resumen (PDF)</button>
+      </section>
+    </main>
+
+    <footer>
+      <p class="disclaimer">
+        Este documento tiene fines educativos y no sustituye una valoración médica
+        individual. Ante signos de alarma consulte con un profesional de salud.
+      </p>
+    </footer>
+    <script src="app.js"></script>
+  </body>
+</html>

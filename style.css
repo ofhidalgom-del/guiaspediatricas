@@ -1,0 +1,611 @@
+/* Stylesheet for Guías pediátricas app */
+
+body {
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  margin: 0;
+  padding: 0;
+  /* Use a very light background so the vibrant elements stand out */
+  background-color: #f8fbfa;
+  color: #333;
+}
+
+/* Login section */
+#loginSection {
+  max-width: 400px;
+  margin: 40px auto;
+  background-color: #fff;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+#loginSection h2 {
+  margin-top: 0;
+  margin-bottom: 20px;
+}
+
+/* Input styles for login and setup (username and password) */
+#loginSection input[type="password"],
+#loginSection input[type="text"] {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 15px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  box-sizing: border-box;
+}
+
+#loginSection button {
+  display: inline-block;
+  margin: 5px;
+}
+
+.error-message {
+  color: #c62828;
+  font-size: 0.9rem;
+  margin-top: 10px;
+}
+
+header {
+  /* Use a soft, paediatric-inspired background pattern for the header.  We mix a pastel gradient with a subtle polka‑dot overlay to evoke playful drawings while retaining a minimal look. */
+  background-color: #fdfdfd;
+  background-image:
+    linear-gradient(120deg, #FFE0B2, #F8BBD0, #BBDEFB, #B2DFDB),
+    radial-gradient(circle at 20px 20px, rgba(255, 255, 255, 0.6) 2px, transparent 3px),
+    radial-gradient(circle at 50px 50px, rgba(255, 255, 255, 0.6) 3px, transparent 4px);
+  background-size: 400% 400%, 70px 70px, 90px 90px;
+  animation: headerGradient 15s ease infinite;
+  color: #333;
+  padding: 40px 20px;
+  text-align: center;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  position: relative;
+}
+
+@keyframes headerGradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+header h1 {
+  margin: 0;
+  font-size: 2.6rem;
+  letter-spacing: 1px;
+}
+
+header p {
+  margin: 8px 0 0;
+  font-size: 1.1rem;
+  font-weight: 300;
+}
+
+header .author-tagline {
+  margin-top: 6px;
+  font-size: 0.9rem;
+  font-style: italic;
+  opacity: 0.8;
+}
+
+main {
+  padding: 20px;
+  max-width: 1000px;
+  margin: auto;
+}
+
+/* Navigation buttons container */
+.nav-buttons {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 30px;
+  gap: 12px;
+}
+
+button {
+  padding: 12px 28px;
+  font-size: 1rem;
+  border: none;
+  border-radius: 30px;
+  cursor: pointer;
+  /* New vibrant gradient for buttons: green to turquoise */
+  background: linear-gradient(135deg, #4caf50, #009688, #03a9f4);
+  color: #fff;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+section {
+  margin-top: 20px;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.form-group {
+  margin-bottom: 15px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  box-sizing: border-box;
+  font-size: 0.95rem;
+}
+
+.form-group textarea {
+  height: 100px;
+  resize: vertical;
+}
+
+#libraryList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  justify-content: center;
+}
+
+/* Category folders in library */
+/* Folder containing a category of guides */
+.category-folder {
+  margin-bottom: 20px;
+  border: 1px solid #e0e0e0;
+  border-radius: 10px;
+  background-color: #ffffff;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+
+/* Summary acts as the folder header.  Use a vibrant gradient here too. */
+.category-folder > summary {
+  cursor: pointer;
+  padding: 14px 22px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  /* Match the header’s pastel confetti aesthetic for category headers */
+  background-color: #fdfdfd;
+  background-image:
+    linear-gradient(120deg, #FFE0B2, #F8BBD0, #BBDEFB, #B2DFDB),
+    radial-gradient(circle at 15px 15px, rgba(255, 255, 255, 0.6) 2px, transparent 3px),
+    radial-gradient(circle at 45px 45px, rgba(255, 255, 255, 0.6) 3px, transparent 4px);
+  background-size: 400% 400%, 60px 60px, 80px 80px;
+  color: #333;
+  border-radius: 10px 10px 0 0;
+  outline: none;
+  user-select: none;
+  list-style: none;
+}
+
+.category-folder > summary::marker {
+  display: none;
+}
+
+/* When folder is open, show a subtle border at the bottom */
+.category-folder[open] > summary {
+  border-bottom: 1px solid #e0e0e0;
+  border-radius: 10px 10px 0 0;
+}
+
+/* Container for cards inside a folder */
+.category-container {
+  padding: 20px 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  justify-content: center;
+  /* Use the same confetti pattern as the header to create cohesion between
+     categories and dynamic sections.  The subtle pastel gradient mixed with
+     radial dots gives a playful yet minimalistic feel */
+  background-color: #fdfdfd;
+  background-image:
+    linear-gradient(120deg, #FFE0B2, #F8BBD0, #BBDEFB, #B2DFDB),
+    radial-gradient(circle at 20px 20px, rgba(255, 255, 255, 0.6) 2px, transparent 3px),
+    radial-gradient(circle at 50px 50px, rgba(255, 255, 255, 0.6) 3px, transparent 4px);
+  background-size: 400% 400%, 70px 70px, 90px 90px;
+}
+
+/* Individual guide cards */
+.guide-card {
+  background-color: #ffffff;
+  padding: 22px;
+  border-radius: 14px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+  flex: 1 1 calc(42% - 20px);
+  display: flex;
+  flex-direction: column;
+  max-width: 420px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Slightly larger elevation on hover */
+.guide-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.18);
+}
+
+.guide-card h3 {
+  margin: 0 0 10px 0;
+  font-size: 1.2rem;
+}
+
+.guide-card p {
+  margin: 0;
+  flex-grow: 1;
+}
+
+/* Button inside a card for viewing/downloading/editing */
+.view-guide-btn {
+  margin-top: 12px;
+  align-self: flex-start;
+  padding: 8px 18px;
+  font-size: 0.9rem;
+  background: linear-gradient(135deg, #ffca28, #ff9800);
+  border-radius: 22px;
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Hover effect for buttons inside cards */
+.view-guide-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 8px rgba(0, 0, 0, 0.18);
+}
+
+/* Thumbnail image in card */
+.guide-card img.thumbnail {
+  width: 100%;
+  height: 150px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+
+.disclaimer {
+  font-size: 0.8rem;
+  text-align: center;
+  margin: 30px 0;
+  color: #555;
+}
+
+/* Objective list styling */
+.objective-list {
+  list-style-type: disc;
+  margin-left: 20px;
+  margin-bottom: 15px;
+}
+.objective-list li {
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+/* Dynamic sections container and items */
+.sections-container {
+  margin-top: 15px;
+}
+.dynamic-section {
+  border: 1px solid #e0e0e0;
+  border-radius: 10px;
+  padding: 15px;
+  margin-bottom: 15px;
+  /* Remove default solid background and shadow here so the confetti pattern
+     defined later applies consistently */
+  background-color: transparent;
+  box-shadow: none;
+}
+.dynamic-section input[type="text"],
+.dynamic-section textarea {
+  width: 100%;
+  padding: 8px;
+  margin-bottom: 8px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  box-sizing: border-box;
+  font-size: 0.95rem;
+}
+.dynamic-section textarea {
+  height: 100px;
+  resize: vertical;
+}
+.dynamic-section input[type="file"] {
+  margin-top: 5px;
+}
+
+/* Toolbar for the rich text editor in each dynamic section */
+.editor-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.editor-toolbar select,
+.editor-toolbar input[type="color"],
+.editor-toolbar button {
+  padding: 4px 8px;
+  font-size: 0.8rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background: #ffffff;
+  cursor: pointer;
+  /* Override global white text colour from primary buttons; use dark text
+     so labels like "B", "I", "Lista", etc. remain visible */
+  color: #333;
+}
+
+.editor-toolbar button {
+  background: #f5f5f5;
+  /* Ensure button text is dark and visible on light background */
+  color: #333;
+}
+
+.editor-toolbar button:hover {
+  background: #e0e0e0;
+}
+
+/* Editable area for section answers */
+.answer-editor {
+  min-height: 100px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 8px;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  overflow-y: auto;
+}
+
+/* Placeholder style for contenteditable when empty */
+.answer-editor:empty::before {
+  content: attr(data-placeholder);
+  color: #999;
+}
+
+/* Button to remove a dynamic section */
+.dynamic-section .remove-section-btn {
+  margin-top: 8px;
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  background: linear-gradient(135deg, #e53935, #d32f2f);
+  border: none;
+  border-radius: 18px;
+  color: #fff;
+  cursor: pointer;
+  font-weight: 600;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.dynamic-section .remove-section-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.18);
+}
+
+/* Buttons to move sections up and down */
+.dynamic-section .move-section-up-btn,
+.dynamic-section .move-section-down-btn {
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  background: linear-gradient(135deg, #8e24aa, #5e35b1);
+  border: none;
+  border-radius: 18px;
+  color: #fff;
+  cursor: pointer;
+  font-weight: 600;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.dynamic-section .move-section-up-btn:hover,
+.dynamic-section .move-section-down-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.18);
+}
+
+/* Button to quickly add a new section at the end of the form */
+.dynamic-section .add-next-section-btn {
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  background: linear-gradient(135deg, #43a047, #2e7d32);
+  border: none;
+  border-radius: 18px;
+  color: #fff;
+  cursor: pointer;
+  font-weight: 600;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  margin-left: 4px;
+}
+.dynamic-section .add-next-section-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.18);
+}
+
+/* Give dynamic sections a subtle pastel confetti background similar to the header */
+.dynamic-section {
+  /* Align the dynamic section background with the header aesthetic.  Use the
+     pastel gradient combined with radial dots to give each section a playful,
+     paediatric tone while maintaining a minimal look */
+  background-color: #fdfdfd;
+  background-image:
+    linear-gradient(120deg, #FFE0B2, #F8BBD0, #BBDEFB, #B2DFDB),
+    radial-gradient(circle at 20px 20px, rgba(255, 255, 255, 0.6) 2px, transparent 3px),
+    radial-gradient(circle at 50px 50px, rgba(255, 255, 255, 0.6) 3px, transparent 4px);
+  background-size: 400% 400%, 70px 70px, 90px 90px;
+  border: 1px solid #e0e0e0;
+  border-radius: 10px;
+  padding: 15px;
+  margin-bottom: 15px;
+}
+
+/* List to display existing attachments within a section */
+.attachment-list {
+  list-style-type: disc;
+  margin-left: 20px;
+  margin-top: 6px;
+  margin-bottom: 6px;
+  font-size: 0.9rem;
+  padding-left: 0;
+}
+.attachment-list li {
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.attachment-list li .remove-attachment-btn {
+  background: linear-gradient(135deg, #e53935, #d32f2f);
+  border: none;
+  border-radius: 12px;
+  color: #fff;
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.attachment-list li .remove-attachment-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.18);
+}
+
+/* Add section button style */
+.add-section-btn {
+  display: inline-block;
+  margin-top: 10px;
+  margin-bottom: 10px;
+  padding: 8px 18px;
+  font-size: 0.9rem;
+  background: linear-gradient(135deg, #4caf50, #009688, #03a9f4);
+  border: none;
+  border-radius: 22px;
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.add-section-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.18);
+}
+
+/* Library create button (inside library sections) */
+.library-create-btn {
+  margin-bottom: 10px;
+  padding: 10px 20px;
+  font-size: 0.9rem;
+  background: linear-gradient(135deg, #4caf50, #009688, #03a9f4);
+  border: none;
+  border-radius: 25px;
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.library-create-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.18);
+}
+
+/* Instruction text in library */
+.library-instruction {
+  text-align: center;
+  font-size: 0.95rem;
+  color: #555;
+  margin-bottom: 10px;
+}
+
+/* Materials section inside doctor library categories */
+.materials-container {
+  background-color: #f1f9f6;
+  border-top: 1px solid #e0e0e0;
+  padding: 15px 20px;
+  margin-top: -10px;
+  border-radius: 0 0 10px 10px;
+}
+.materials-container h4 {
+  margin: 0 0 10px 0;
+  color: #00695c;
+  font-size: 1rem;
+}
+
+/* Modal styles */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow-y: auto;
+  z-index: 1000;
+}
+
+.modal-content {
+  background-color: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  max-width: 600px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  position: relative;
+}
+
+.modal-content h2 {
+  margin-top: 0;
+}
+
+.close-btn {
+  float: right;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #888;
+}
+
+.close-btn:hover {
+  color: #555;
+}
+
+/* Author tagline in modal */
+.modal-content .author-detail {
+  font-size: 0.9rem;
+  font-style: italic;
+  margin-bottom: 10px;
+  color: #666;
+}
+
+/* Modal image */
+.modal-image {
+  width: 100%;
+  max-height: 250px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-bottom: 15px;
+}
