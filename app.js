@@ -1,7 +1,7 @@
-// JavaScript for Guías Pediátricas
+// JavaScript for GuÃ­asÂ PediÃ¡tricas
 
 // This script handles authentication, form handling, storage and display of
-// both parent‑oriented guides and doctor‑oriented guides. Each guide is
+// both parentâ€‘oriented guides and doctorâ€‘oriented guides. Each guide is
 // persisted in localStorage under the key `guides` and carries a `type`
 // property (either 'parent' or 'doctor'). The owner (authenticated user)
 // can create, edit and delete guides while guests can only view and
@@ -24,36 +24,134 @@ document.addEventListener('DOMContentLoaded', () => {
    * Each category includes an emoji used in the UI to make the app feel
    * friendly and paediatric. Feel free to adjust or extend this list.
    */
-  // Global variable to track which dynamic section is currently being
-  // dragged.  Used by the drag-and-drop handlers to reorder sections.
+  // Global variables to track editor state.  "draggedSection" is no longer
+  // used because drag-and-drop reordering of sections has been disabled.
   let draggedSection = null;
+
+  // Track which element (question input or answer editor) is currently
+  // selected for styling operations.  When the user clicks on a question
+  // input or the answer content area, this variable is updated.  All
+  // formatting controls (font, size, colour, bold, italic) will apply
+  // to the element referenced by activeEditable.
+  let activeEditable = null;
+
+  // Saved selection range for rich text editing.  When the user
+  // highlights text within the answer editor, we store the range here.
+  // When a toolbar control is used (which may steal focus), we
+  // restore this range before executing formatting commands so that
+  // commands apply to the original selection rather than the entire
+  // content.  This is shared across all sections but only used
+  // within the currently active editor.
+  let savedRange = null;
+
+  /**
+   * Restore the previously saved selection range in the currently
+   * active editable element.  This function is used before
+   * applying formatting commands that rely on a selection.  If
+   * savedRange is null or the active element is not the answer
+   * editor, nothing happens.
+   */
+  function restoreSavedSelection() {
+    if (savedRange && activeEditable) {
+      try {
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(savedRange);
+      } catch (e) {
+        // Silently ignore errors when restoring selection
+      }
+    }
+  }
+
+  function selectionBelongsTo(element) {
+    if (!element || !savedRange) return false;
+    const common = savedRange.commonAncestorContainer;
+    const node = common.nodeType === Node.TEXT_NODE ? common.parentNode : common;
+    return element.contains(node);
+  }
+
+  function saveSelectionIfInside(element) {
+    try {
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount > 0) {
+        const range = sel.getRangeAt(0);
+        const common = range.commonAncestorContainer;
+        const node = common.nodeType === Node.TEXT_NODE ? common.parentNode : common;
+        if (element.contains(node)) {
+          savedRange = range.cloneRange();
+          activeEditable = element;
+        }
+      }
+    } catch (e) {
+      // ignore selection errors
+    }
+  }
+
+  function applyStyleToSelection(element, styles, fallbackCommand, fallbackValue) {
+    if (!element) return;
+    restoreSavedSelection();
+    if (selectionBelongsTo(element) && !savedRange.collapsed) {
+      const span = document.createElement('span');
+      Object.entries(styles).forEach(([key, value]) => {
+        span.style[key] = value;
+      });
+      try {
+        const contents = savedRange.extractContents();
+        span.appendChild(contents);
+        savedRange.insertNode(span);
+        const range = document.createRange();
+        range.setStartAfter(span);
+        range.collapse(true);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+        savedRange = range.cloneRange();
+        return;
+      } catch (e) {
+        // Fall back to execCommand below if wrapping fails
+      }
+    }
+    if (fallbackCommand) {
+      element.focus();
+      restoreSavedSelection();
+      document.execCommand('styleWithCSS', true, null);
+      document.execCommand(fallbackCommand, false, fallbackValue || null);
+    }
+  }
+
+  // When editing an existing guide, store its PDF attachment here so that
+  // the file input is not required to retain the PDF.  If a new file is
+  // uploaded, this value is replaced.  These variables are reset when
+  // resetting the forms.
+  let editingParentPdf = null;
+  let editingDoctorPdf = null;
   // Updated categories list based on user request. Each category has a friendly emoji
   // that reflects the speciality. When choosing emojis, we tried to pick symbols
   // that evoke the body system or context of each subspecialty.
   const CATEGORIES = [
-    { name: 'Neonatología', emoji: '👶' },
-    { name: 'Cardiología', emoji: '❤️' },
-    { name: 'Neumología', emoji: '🌬️' },
-    { name: 'Gastroenterología', emoji: '🍽️' },
-    { name: 'Nefrología', emoji: '💧' },
-    { name: 'Endocrinología', emoji: '🧪' },
-    { name: 'Infectología', emoji: '🦠' },
-    { name: 'Inmunología / Reumatología', emoji: '🛡️' },
-    { name: 'Hemaoncología', emoji: '🩸' },
-    { name: 'Alergología', emoji: '🤧' },
-    { name: 'Neurología', emoji: '🧠' },
-    { name: 'Psiquiatría', emoji: '💭' },
-    { name: 'Neurodesarrollo', emoji: '🧩' },
-    { name: 'Ginecología', emoji: '🤰' },
-    { name: 'Emergencias', emoji: '🚑' },
-    { name: 'Medicina hospitalaria', emoji: '🏥' },
-    { name: 'UCI', emoji: '🛌' },
-    { name: 'Genética', emoji: '🧬' },
-    { name: 'Dermatología pediátrica', emoji: '🌸' },
-    { name: 'Pediatría general', emoji: '🩺' },
-    { name: 'Cirugía pediátrica', emoji: '🩹' },
-    { name: 'Ortopedia', emoji: '🦴' },
-    { name: 'Otro', emoji: '📂' },
+    { name: 'NeonatologÃ­a', emoji: 'ðŸ‘¶' },
+    { name: 'CardiologÃ­a', emoji: 'â¤ï¸' },
+    { name: 'NeumologÃ­a', emoji: 'ðŸŒ¬ï¸' },
+    { name: 'GastroenterologÃ­a', emoji: 'ðŸ½ï¸' },
+    { name: 'NefrologÃ­a', emoji: 'ðŸ’§' },
+    { name: 'EndocrinologÃ­a', emoji: 'ðŸ§ª' },
+    { name: 'InfectologÃ­a', emoji: 'ðŸ¦ ' },
+    { name: 'InmunologÃ­a / ReumatologÃ­a', emoji: 'ðŸ›¡ï¸' },
+    { name: 'HemaoncologÃ­a', emoji: 'ðŸ©¸' },
+    { name: 'AlergologÃ­a', emoji: 'ðŸ¤§' },
+    { name: 'NeurologÃ­a', emoji: 'ðŸ§ ' },
+    { name: 'PsiquiatrÃ­a', emoji: 'ðŸ’­' },
+    { name: 'Neurodesarrollo', emoji: 'ðŸ§©' },
+    { name: 'GinecologÃ­a', emoji: 'ðŸ¤°' },
+    { name: 'Emergencias', emoji: 'ðŸš‘' },
+    { name: 'Medicina hospitalaria', emoji: 'ðŸ¥' },
+    { name: 'UCI', emoji: 'ðŸ›Œ' },
+    { name: 'GenÃ©tica', emoji: 'ðŸ§¬' },
+    { name: 'DermatologÃ­a pediÃ¡trica', emoji: 'ðŸŒ¸' },
+    { name: 'PediatrÃ­a general', emoji: 'ðŸ©º' },
+    { name: 'CirugÃ­a pediÃ¡trica', emoji: 'ðŸ©¹' },
+    { name: 'Ortopedia', emoji: 'ðŸ¦´' },
+    { name: 'Otro', emoji: 'ðŸ“‚' },
   ];
 
   /* ---------------------------------------------------------------------
@@ -92,25 +190,21 @@ document.addEventListener('DOMContentLoaded', () => {
   const articleSummaryResult = document.getElementById('articleSummaryResult');
   const articleImageResult = document.getElementById('articleImageResult');
 
+  // PDF inputs for parent and doctor guides
+  const parentPdfInput = document.getElementById('parentPdf');
+  const doctorPdfInput = document.getElementById('doctorPdf');
+
   // Variable to store the last generated summary so it can be downloaded as PDF
   let lastGeneratedSummary = '';
 
-  // PediBot configuration: an array of paediatric tips to cycle through
-  const PEDI_MESSAGES = [
-    'Recuerda vacunar a tu hijo según el calendario recomendado. Las vacunas salvan vidas.',
-    'Los bebés deben dormir boca arriba en una superficie firme para prevenir el síndrome de muerte súbita del lactante.',
-    'Promueve la lactancia materna exclusiva durante los primeros seis meses de vida.',
-    'A partir de los seis meses, introduce alimentos sólidos saludables de uno en uno y en pequeñas cantidades.',
-    'El juego al aire libre favorece el desarrollo físico y emocional de los niños.',
-    'Lávate las manos frecuentemente y enseña a tu hijo a hacerlo para prevenir infecciones.',
-    'Limita el tiempo de pantallas y fomenta la lectura y el juego creativo.',
-    'Los niños necesitan al menos 60 minutos de actividad física al día para mantenerse sanos.',
-    'Revisa regularmente el crecimiento y desarrollo de tu hijo con un profesional de salud.',
-    'La alimentación equilibrada y variada ayuda al crecimiento y al desarrollo cognitivo.',
-    'En caso de fiebre persistente o cualquier signo de alarma, consulta al médico sin demoras.'
-  ];
-  let pediBotInterval = null;
-  let pediBotIndex = 0;
+  // The PediBot feature has been removed at the user's request.  These
+  // variables and message definitions are retained as comments to
+  // illustrate prior functionality but are no longer used.  If you
+  // decide to reintroduce a paediatric tip bot, you can reâ€‘enable
+  // PEDI_MESSAGES and the associated startPediBot function.
+  // const PEDI_MESSAGES = [];
+  // let pediBotInterval = null;
+  // let pediBotIndex = 0;
 
 
   // Forms and libraries
@@ -146,17 +240,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Default section labels for new guides. These can be edited or removed by the user.
   const DEFAULT_PARENT_SECTIONS = [
-    '¿Qué es?',
-    '¿Por qué ocurre?',
-    '¿Qué síntomas puedo esperar?',
-    '¿Cómo se trata?',
-    '¿Cuáles son los signos de alarma?',
+    'Â¿QuÃ© es?',
+    'Â¿Por quÃ© ocurre?',
+    'Â¿QuÃ© sÃ­ntomas puedo esperar?',
+    'Â¿CÃ³mo se trata?',
+    'Â¿CuÃ¡les son los signos de alarma?',
     'Mensajes clave',
     'Fuentes',
     'Material adicional',
   ];
   const DEFAULT_DOCTOR_SECTIONS = [
-    'Historia clínica / machote',
+    'Historia clÃ­nica / machote',
     'Consejos de abordaje',
     'Fuentes',
     'Material adicional',
@@ -254,6 +348,22 @@ document.addEventListener('DOMContentLoaded', () => {
       event.preventDefault();
       // Gather dynamic sections including attachments
       const sections = await collectSections(parentSectionsContainer);
+      // Determine the PDF attachment.  If a new file is provided, read it
+      // into a DataURL.  Otherwise, if editing an existing guide and no
+      // new file is selected, reuse the previously stored PDF.
+      let pdfObj = null;
+      if (parentPdfInput && parentPdfInput.files && parentPdfInput.files.length > 0) {
+        const file = parentPdfInput.files[0];
+        pdfObj = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            resolve({ name: file.name, data: e.target.result });
+          };
+          reader.readAsDataURL(file);
+        });
+      } else if (editingParentPdf) {
+        pdfObj = editingParentPdf;
+      }
       const guide = {
         id: editingParentId || Date.now().toString(),
         type: 'parent',
@@ -261,10 +371,12 @@ document.addEventListener('DOMContentLoaded', () => {
         category: parentGuideForm.parentCategory.value,
         date: new Date().toLocaleDateString('es-CR'),
         sections,
+        pdf: pdfObj,
       };
       if (editingParentId) {
         updateGuide(guide);
         editingParentId = null;
+        editingParentPdf = null;
       } else {
         saveGuide(guide);
       }
@@ -276,6 +388,20 @@ document.addEventListener('DOMContentLoaded', () => {
     doctorGuideForm.addEventListener('submit', async (event) => {
       event.preventDefault();
       const sections = await collectSections(doctorSectionsContainer);
+      // Handle PDF attachment similarly to parent guides
+      let pdfObj = null;
+      if (doctorPdfInput && doctorPdfInput.files && doctorPdfInput.files.length > 0) {
+        const file = doctorPdfInput.files[0];
+        pdfObj = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            resolve({ name: file.name, data: e.target.result });
+          };
+          reader.readAsDataURL(file);
+        });
+      } else if (editingDoctorPdf) {
+        pdfObj = editingDoctorPdf;
+      }
       const guide = {
         id: editingDoctorId || Date.now().toString(),
         type: 'doctor',
@@ -283,10 +409,12 @@ document.addEventListener('DOMContentLoaded', () => {
         category: doctorGuideForm.doctorCategory.value,
         date: new Date().toLocaleDateString('es-CR'),
         sections,
+        pdf: pdfObj,
       };
       if (editingDoctorId) {
         updateGuide(guide);
         editingDoctorId = null;
+        editingDoctorPdf = null;
       } else {
         saveGuide(guide);
       }
@@ -406,9 +534,21 @@ document.addEventListener('DOMContentLoaded', () => {
     // Question input
     const questionInput = document.createElement('input');
     questionInput.type = 'text';
-    questionInput.placeholder = 'Pregunta o título del apartado';
+    questionInput.placeholder = 'Pregunta o tÃ­tulo del apartado';
     questionInput.value = question;
     sectionDiv.appendChild(questionInput);
+
+    // When the user clicks or focuses on the question input, mark it
+    // as the active editable element so that formatting controls apply
+    // to this element.  Note: contenteditable operations such as lists
+    // and tables do not apply to inputs and are still applied only
+    // within the answer editor below.
+    questionInput.addEventListener('click', () => {
+      activeEditable = questionInput;
+    });
+    questionInput.addEventListener('focus', () => {
+      activeEditable = questionInput;
+    });
     // Toolbar for styling and inserting lists/tables
     const toolbar = document.createElement('div');
     toolbar.className = 'editor-toolbar';
@@ -420,9 +560,15 @@ document.addEventListener('DOMContentLoaded', () => {
       '<option value="Verdana">Verdana</option>' +
       '<option value="Comic Sans MS">Comic Sans MS</option>';
     toolbar.appendChild(fontSelect);
+    // Prevent toolbar controls from stealing focus when clicked so selection
+    // inside the answer editor is preserved.  Without this, clicking a
+    // button will move focus to the button, clearing the selection and
+    // causing formatting commands (e.g. bold) to apply to the entire
+    // element rather than the selected text.  mousedown handlers call
+    // preventDefault to keep focus within the editor.
     // Font size selector
     const sizeSelect = document.createElement('select');
-    sizeSelect.innerHTML = '<option value="">Tamaño</option>' +
+    sizeSelect.innerHTML = '<option value="">TamaÃ±o</option>' +
       '<option value="14px">14 px</option>' +
       '<option value="16px">16 px</option>' +
       '<option value="18px">18 px</option>' +
@@ -440,22 +586,43 @@ document.addEventListener('DOMContentLoaded', () => {
     boldBtn.textContent = 'B';
     boldBtn.style.fontWeight = 'bold';
     toolbar.appendChild(boldBtn);
+    boldBtn.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+    });
     // Italic button
     const italicBtn = document.createElement('button');
     italicBtn.type = 'button';
     italicBtn.textContent = 'I';
     italicBtn.style.fontStyle = 'italic';
     toolbar.appendChild(italicBtn);
+    italicBtn.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+    });
+    // Underline button
+    const underlineBtn = document.createElement('button');
+    underlineBtn.type = 'button';
+    underlineBtn.textContent = 'U';
+    underlineBtn.style.textDecoration = 'underline';
+    toolbar.appendChild(underlineBtn);
+    underlineBtn.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+    });
     // Unordered list button
     const listBtn = document.createElement('button');
     listBtn.type = 'button';
     listBtn.textContent = 'Lista';
     toolbar.appendChild(listBtn);
+    listBtn.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+    });
     // Table button
     const tableBtn = document.createElement('button');
     tableBtn.type = 'button';
     tableBtn.textContent = 'Tabla';
     toolbar.appendChild(tableBtn);
+    tableBtn.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+    });
 
     // Additional controls for table editing
     // Add row button
@@ -463,21 +630,33 @@ document.addEventListener('DOMContentLoaded', () => {
     addRowBtn.type = 'button';
     addRowBtn.textContent = 'Fila +';
     toolbar.appendChild(addRowBtn);
+    addRowBtn.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+    });
     // Remove row button
     const removeRowBtn = document.createElement('button');
     removeRowBtn.type = 'button';
     removeRowBtn.textContent = 'Fila -';
     toolbar.appendChild(removeRowBtn);
+    removeRowBtn.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+    });
     // Add column button
     const addColBtn = document.createElement('button');
     addColBtn.type = 'button';
     addColBtn.textContent = 'Col +';
     toolbar.appendChild(addColBtn);
+    addColBtn.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+    });
     // Remove column button
     const removeColBtn = document.createElement('button');
     removeColBtn.type = 'button';
     removeColBtn.textContent = 'Col -';
     toolbar.appendChild(removeColBtn);
+    removeColBtn.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+    });
     sectionDiv.appendChild(toolbar);
     // Contenteditable div for answer
     const answerDiv = document.createElement('div');
@@ -486,6 +665,33 @@ document.addEventListener('DOMContentLoaded', () => {
     answerDiv.setAttribute('data-placeholder', 'Contenido o respuesta');
     answerDiv.innerHTML = answer || '';
     sectionDiv.appendChild(answerDiv);
+
+    // When the user clicks or focuses on the answer editor, mark it
+    // as the active editable element for formatting controls.
+    answerDiv.addEventListener('click', () => {
+      activeEditable = answerDiv;
+    });
+    answerDiv.addEventListener('focus', () => {
+      activeEditable = answerDiv;
+    });
+    // Update savedRange whenever the user releases the mouse inside the answer
+    // editor.  This captures the current selection so that formatting
+    // commands can later restore and operate on the same text.
+    answerDiv.addEventListener('mouseup', () => {
+      saveSelectionIfInside(answerDiv);
+    });
+    let activeTableCell = null;
+    answerDiv.addEventListener('keyup', () => {
+      saveSelectionIfInside(answerDiv);
+    });
+    answerDiv.addEventListener('click', (event) => {
+      const cell = event.target.closest ? event.target.closest('td, th') : null;
+      if (cell && answerDiv.contains(cell)) {
+        activeTableCell = cell;
+        answerDiv.querySelectorAll('.selected-table-cell').forEach((el) => el.classList.remove('selected-table-cell'));
+        cell.classList.add('selected-table-cell');
+      }
+    });
     // Video input
     const videoInput = document.createElement('input');
     videoInput.type = 'text';
@@ -522,28 +728,74 @@ document.addEventListener('DOMContentLoaded', () => {
     renderAttachmentList(sectionDiv, attachList);
     // Event listeners for toolbar controls
     fontSelect.addEventListener('change', () => {
-      answerDiv.style.fontFamily = fontSelect.value || '';
+      const value = fontSelect.value;
+      if (!value) return;
+      if (activeEditable === answerDiv) {
+        applyStyleToSelection(answerDiv, { fontFamily: value }, 'fontName', value);
+      } else if (activeEditable) {
+        // Apply font to the entire element (e.g. question title)
+        activeEditable.style.fontFamily = value;
+      }
     });
     sizeSelect.addEventListener('change', () => {
-      answerDiv.style.fontSize = sizeSelect.value || '';
+      const value = sizeSelect.value;
+      if (!value) return;
+      if (activeEditable === answerDiv) {
+        // Map pixel values to execCommand size values (1-7)
+        const sizeMap = {
+          '14px': '2',
+          '16px': '3',
+          '18px': '4',
+          '20px': '5',
+          '24px': '6',
+        };
+        const cmdVal = sizeMap[value] || '3';
+        applyStyleToSelection(answerDiv, { fontSize: value }, 'fontSize', cmdVal);
+      } else if (activeEditable) {
+        activeEditable.style.fontSize = value;
+      }
     });
     colorInput.addEventListener('change', () => {
-      answerDiv.style.color = colorInput.value || '';
+      const color = colorInput.value;
+      if (!color) return;
+      if (activeEditable === answerDiv) {
+        applyStyleToSelection(answerDiv, { color }, 'foreColor', color);
+      } else if (activeEditable) {
+        activeEditable.style.color = color;
+      }
     });
     boldBtn.addEventListener('click', () => {
-      const isBold = answerDiv.style.fontWeight === 'bold';
-      answerDiv.style.fontWeight = isBold ? 'normal' : 'bold';
+      if (activeEditable === answerDiv) {
+        applyStyleToSelection(answerDiv, { fontWeight: 'bold' }, 'bold');
+      } else if (activeEditable) {
+        const isBold = activeEditable.style.fontWeight === 'bold';
+        activeEditable.style.fontWeight = isBold ? 'normal' : 'bold';
+      }
     });
     italicBtn.addEventListener('click', () => {
-      const isItalic = answerDiv.style.fontStyle === 'italic';
-      answerDiv.style.fontStyle = isItalic ? 'normal' : 'italic';
+      if (activeEditable === answerDiv) {
+        applyStyleToSelection(answerDiv, { fontStyle: 'italic' }, 'italic');
+      } else if (activeEditable) {
+        const isItalic = activeEditable.style.fontStyle === 'italic';
+        activeEditable.style.fontStyle = isItalic ? 'normal' : 'italic';
+      }
+    });
+    underlineBtn.addEventListener('click', () => {
+      if (activeEditable === answerDiv) {
+        applyStyleToSelection(answerDiv, { textDecoration: 'underline' }, 'underline');
+      } else if (activeEditable) {
+        const isUnderline = activeEditable.style.textDecoration === 'underline';
+        activeEditable.style.textDecoration = isUnderline ? 'none' : 'underline';
+      }
     });
     listBtn.addEventListener('click', () => {
       answerDiv.focus();
+      restoreSavedSelection();
       document.execCommand('insertUnorderedList', false, null);
     });
     tableBtn.addEventListener('click', () => {
       answerDiv.focus();
+      restoreSavedSelection();
       const htmlTable = '<table style="width: 100%; border-collapse: collapse;" border="1">' +
         '<tr><th>Columna 1</th><th>Columna 2</th></tr>' +
         '<tr><td></td><td></td></tr>' +
@@ -551,61 +803,92 @@ document.addEventListener('DOMContentLoaded', () => {
       document.execCommand('insertHTML', false, htmlTable);
     });
 
-    // Function to get the first table inside the answerDiv
+    // Helpers for friendly table editing.  The user can click a cell and then
+    // use the row/column buttons to modify the row or column related to that
+    // selected cell.  If no cell is selected, the first table is used.
     function getFirstTable() {
       return answerDiv.querySelector('table');
     }
-    // Helper to alert if no table exists
+    function getActiveTable() {
+      if (activeTableCell && answerDiv.contains(activeTableCell)) {
+        return activeTableCell.closest('table');
+      }
+      return getFirstTable();
+    }
     function ensureTable() {
-      const table = getFirstTable();
+      const table = getActiveTable();
       if (!table) {
         alert('Debe insertar una tabla primero.');
         return null;
       }
       return table;
     }
-    // Add row to existing table
+    function getCellIndex(cell) {
+      if (!cell || !cell.parentElement) return 0;
+      return Array.from(cell.parentElement.children).indexOf(cell);
+    }
+    function selectTableCell(cell) {
+      if (!cell) return;
+      answerDiv.querySelectorAll('.selected-table-cell').forEach((el) => el.classList.remove('selected-table-cell'));
+      cell.classList.add('selected-table-cell');
+      activeTableCell = cell;
+    }
+    // Add a row below the selected cell's row; if no cell is selected, add to the end.
     addRowBtn.addEventListener('click', () => {
       const table = ensureTable();
       if (!table) return;
-      const numCells = table.rows[0].cells.length;
-      const newRow = table.insertRow(-1);
+      const referenceRow = activeTableCell && table.contains(activeTableCell) ? activeTableCell.parentElement : table.rows[table.rows.length - 1];
+      const insertIndex = referenceRow ? referenceRow.rowIndex + 1 : table.rows.length;
+      const numCells = table.rows[0] ? table.rows[0].cells.length : 2;
+      const newRow = table.insertRow(insertIndex);
       for (let i = 0; i < numCells; i++) {
         const newCell = newRow.insertCell(-1);
         newCell.innerHTML = '';
       }
+      selectTableCell(newRow.cells[0]);
     });
-    // Remove last row from existing table (keep at least header and one row)
+    // Remove the selected row; keep at least one row in the table.
     removeRowBtn.addEventListener('click', () => {
       const table = ensureTable();
       if (!table) return;
-      if (table.rows.length > 2) {
-        table.deleteRow(-1);
-      } else {
-        alert('No se puede eliminar todas las filas.');
+      if (table.rows.length <= 1) {
+        alert('No se puede eliminar la Ãºltima fila.');
+        return;
       }
+      const row = activeTableCell && table.contains(activeTableCell) ? activeTableCell.parentElement : table.rows[table.rows.length - 1];
+      const nextRow = row.nextElementSibling || row.previousElementSibling;
+      table.deleteRow(row.rowIndex);
+      if (nextRow && nextRow.cells.length > 0) selectTableCell(nextRow.cells[0]);
+      else activeTableCell = null;
     });
-    // Add column to existing table
+    // Add a column to the right of the selected cell; if no cell is selected, add at the end.
     addColBtn.addEventListener('click', () => {
       const table = ensureTable();
       if (!table) return;
-      Array.from(table.rows).forEach((row, index) => {
-        const cell = row.insertCell(-1);
-        cell.innerHTML = index === 0 ? 'Nueva columna' : '';
+      const selectedIndex = activeTableCell && table.contains(activeTableCell) ? getCellIndex(activeTableCell) : (table.rows[0] ? table.rows[0].cells.length - 1 : 0);
+      const insertIndex = selectedIndex + 1;
+      Array.from(table.rows).forEach((row, rowIndex) => {
+        const cell = row.insertCell(insertIndex);
+        cell.innerHTML = rowIndex === 0 ? 'Nueva columna' : '';
       });
+      if (table.rows[0] && table.rows[0].cells[insertIndex]) selectTableCell(table.rows[0].cells[insertIndex]);
     });
-    // Remove last column from existing table
+    // Remove the selected column; keep at least one column.
     removeColBtn.addEventListener('click', () => {
       const table = ensureTable();
       if (!table) return;
-      const numCols = table.rows[0].cells.length;
-      if (numCols > 1) {
-        Array.from(table.rows).forEach((row) => {
-          row.deleteCell(-1);
-        });
-      } else {
-        alert('No se puede eliminar todas las columnas.');
+      const numCols = table.rows[0] ? table.rows[0].cells.length : 0;
+      if (numCols <= 1) {
+        alert('No se puede eliminar la Ãºltima columna.');
+        return;
       }
+      const selectedIndex = activeTableCell && table.contains(activeTableCell) ? getCellIndex(activeTableCell) : numCols - 1;
+      Array.from(table.rows).forEach((row) => {
+        if (row.cells[selectedIndex]) row.deleteCell(selectedIndex);
+      });
+      const newIndex = Math.min(selectedIndex, numCols - 2);
+      if (table.rows[0] && table.rows[0].cells[newIndex]) selectTableCell(table.rows[0].cells[newIndex]);
+      else activeTableCell = null;
     });
     // Remove section button
     const removeBtn = document.createElement('button');
@@ -616,29 +899,34 @@ document.addEventListener('DOMContentLoaded', () => {
       container.removeChild(sectionDiv);
     });
     sectionDiv.appendChild(removeBtn);
-    // Drag-and-drop reordering: make the section draggable and handle drag events
-    sectionDiv.draggable = true;
-    sectionDiv.addEventListener('dragstart', (ev) => {
-      draggedSection = sectionDiv;
-      sectionDiv.classList.add('dragging');
-      try {
-        ev.dataTransfer.setData('text/plain', 'dragging');
-      } catch (e) {
-        // Some browsers throw if dataTransfer is not available
+    // Up and down arrow buttons to change section order.  These controls
+    // allow the user to reposition sections without dragâ€‘andâ€‘drop.  When
+    // clicking the up arrow, the section is moved before its previous
+    // sibling (if any).  Clicking the down arrow moves it after the next
+    // sibling.
+    const upBtn = document.createElement('button');
+    upBtn.type = 'button';
+    upBtn.textContent = 'â†‘';
+    upBtn.className = 'move-section-btn';
+    upBtn.addEventListener('click', () => {
+      const prev = sectionDiv.previousElementSibling;
+      if (prev) {
+        container.insertBefore(sectionDiv, prev);
       }
     });
-    sectionDiv.addEventListener('dragend', () => {
-      sectionDiv.classList.remove('dragging');
-    });
-    sectionDiv.addEventListener('dragover', (ev) => {
-      ev.preventDefault();
-    });
-    sectionDiv.addEventListener('drop', (ev) => {
-      ev.preventDefault();
-      if (draggedSection && draggedSection !== sectionDiv) {
-        container.insertBefore(draggedSection, sectionDiv);
+    const downBtn = document.createElement('button');
+    downBtn.type = 'button';
+    downBtn.textContent = 'â†“';
+    downBtn.className = 'move-section-btn';
+    downBtn.addEventListener('click', () => {
+      const next = sectionDiv.nextElementSibling;
+      if (next) {
+        container.insertBefore(next, sectionDiv);
       }
     });
+    sectionDiv.appendChild(upBtn);
+    sectionDiv.appendChild(downBtn);
+    // Append the completed section to the container
     container.appendChild(sectionDiv);
   }
 
@@ -660,7 +948,7 @@ document.addEventListener('DOMContentLoaded', () => {
   async function collectSections(container) {
     /**
      * Gather all dynamic sections within a form container.  Each section consists of:
-     *  - An input for the question/título
+     *  - An input for the question/tÃ­tulo
      *  - A contenteditable div for the answer (rich text)
      *  - A text input with class .video-input for video links
      *  - A file input with class .file-input for attachments
@@ -734,7 +1022,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Delete a guide by id
   function deleteGuide(id) {
-    if (!confirm('¿Seguro que desea eliminar esta guía?')) return;
+    if (!confirm('Â¿Seguro que desea eliminar esta guÃ­a?')) return;
     const existing = JSON.parse(localStorage.getItem('guides') || '[]');
     const updated = existing.filter((g) => g.id !== id);
     localStorage.setItem('guides', JSON.stringify(updated));
@@ -755,7 +1043,7 @@ document.addEventListener('DOMContentLoaded', () => {
     targetFolders.innerHTML = '';
     if (list.length === 0) {
       const msg = document.createElement('p');
-      msg.textContent = 'No hay guías creadas aún.';
+      msg.textContent = 'No hay guÃ­as creadas aÃºn.';
       targetFolders.appendChild(msg);
       return;
     }
@@ -778,7 +1066,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const summary = document.createElement('summary');
       // Find emoji for this category
       const catObj = CATEGORIES.find((c) => c.name === categoryName);
-      const emoji = catObj ? catObj.emoji : '📁';
+      const emoji = catObj ? catObj.emoji : 'ðŸ“';
       summary.textContent = `${emoji} ${categoryName} (${groups[categoryName].length})`;
       folder.appendChild(summary);
       const container = document.createElement('div');
@@ -789,10 +1077,10 @@ document.addEventListener('DOMContentLoaded', () => {
         addBtn.className = 'view-guide-btn';
         // Use the same gradient as other primary buttons for consistency
         addBtn.style.background = 'linear-gradient(135deg, #4caf50, #009688, #03a9f4)';
-        addBtn.textContent = 'Nueva guía';
+        addBtn.textContent = 'Nueva guÃ­a';
         addBtn.addEventListener('click', (e) => {
           e.stopPropagation();
-          // Open the appropriate form and pre‑select the category
+          // Open the appropriate form and preâ€‘select the category
           if (type === 'parent') {
             openParentForm();
             // Set selected category after the form loads
@@ -837,7 +1125,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const placeholder = document.createElement('div');
             placeholder.style.fontSize = '3rem';
             placeholder.style.marginBottom = '10px';
-            placeholder.textContent = guide.type === 'parent' ? '📄' : '📋';
+            placeholder.textContent = guide.type === 'parent' ? 'ðŸ“„' : 'ðŸ“‹';
             card.appendChild(placeholder);
           }
           const titleElem = document.createElement('h3');
@@ -848,23 +1136,49 @@ document.addEventListener('DOMContentLoaded', () => {
           card.appendChild(dateElem);
           const viewBtn = document.createElement('button');
           viewBtn.className = 'view-guide-btn';
-          viewBtn.textContent = 'Ver guía';
+          viewBtn.textContent = 'Ver guÃ­a';
           viewBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             showGuideDetails(guide);
           });
           card.appendChild(viewBtn);
-          // Add download PDF button for all users
+          // Download menu directly on the category page, inside each guide card.
+          // This lets the user download the guide without opening the full modal.
+          const downloadWrap = document.createElement('div');
+          downloadWrap.className = 'download-menu';
+          const downloadBtn = document.createElement('button');
+          downloadBtn.className = 'view-guide-btn download-main-btn';
+          downloadBtn.style.background = 'linear-gradient(135deg, #7b1fa2, #6a1b9a)';
+          downloadBtn.textContent = 'Descargar â–¾';
+          const downloadOptions = document.createElement('div');
+          downloadOptions.className = 'download-options hidden';
           const pdfBtn = document.createElement('button');
-          pdfBtn.className = 'view-guide-btn';
-          // Use a different colour gradient for PDF button
-          pdfBtn.style.background = 'linear-gradient(135deg, #7b1fa2, #6a1b9a)';
-          pdfBtn.textContent = 'Descargar PDF';
+          pdfBtn.type = 'button';
+          pdfBtn.className = 'download-option-btn';
+          pdfBtn.textContent = 'PDF (A5)';
           pdfBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             printGuide(guide);
+            downloadOptions.classList.add('hidden');
           });
-          card.appendChild(pdfBtn);
+          const wordBtn = document.createElement('button');
+          wordBtn.type = 'button';
+          wordBtn.className = 'download-option-btn';
+          wordBtn.textContent = 'Word';
+          wordBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            downloadWord(guide);
+            downloadOptions.classList.add('hidden');
+          });
+          downloadBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            downloadOptions.classList.toggle('hidden');
+          });
+          downloadOptions.appendChild(pdfBtn);
+          downloadOptions.appendChild(wordBtn);
+          downloadWrap.appendChild(downloadBtn);
+          downloadWrap.appendChild(downloadOptions);
+          card.appendChild(downloadWrap);
           if (role === 'owner') {
             const editBtn = document.createElement('button');
             editBtn.className = 'view-guide-btn';
@@ -1000,28 +1314,23 @@ document.addEventListener('DOMContentLoaded', () => {
       case 'parentLibrary':
         parentLibrarySection.classList.remove('hidden');
         loadLibrary('parent');
-        // If there are no guides in this library yet, show a create button so the owner
-        // can start a new category. Once at least one guide exists, the create
-        // button will be provided inside each category instead.
-        {
-          const guidesList = JSON.parse(localStorage.getItem('guides') || '[]').filter((g) => g.type === 'parent');
-          if (role === 'owner' && guidesList.length === 0) {
-            parentLibraryCreateBtn.classList.remove('hidden');
-          } else {
-            parentLibraryCreateBtn.classList.add('hidden');
-          }
+        // Always show the topâ€‘level "Nueva guÃ­a" button at the start of
+        // the parent library for the owner.  Guests cannot see this button.
+        if (role === 'owner') {
+          parentLibraryCreateBtn.classList.remove('hidden');
+        } else {
+          parentLibraryCreateBtn.classList.add('hidden');
         }
         break;
       case 'doctorLibrary':
         doctorLibrarySection.classList.remove('hidden');
         loadLibrary('doctor');
-        {
-          const guidesList = JSON.parse(localStorage.getItem('guides') || '[]').filter((g) => g.type === 'doctor');
-          if (role === 'owner' && guidesList.length === 0) {
-            doctorLibraryCreateBtn.classList.remove('hidden');
-          } else {
-            doctorLibraryCreateBtn.classList.add('hidden');
-          }
+        // Always show the topâ€‘level "Nueva guÃ­a" button at the start of
+        // the doctor library for the owner.  Guests cannot see this button.
+        if (role === 'owner') {
+          doctorLibraryCreateBtn.classList.remove('hidden');
+        } else {
+          doctorLibraryCreateBtn.classList.add('hidden');
         }
         break;
       default:
@@ -1033,7 +1342,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function openParentForm() {
     resetParentForm();
     editingParentId = null;
-    parentGuideFormSection.querySelector('h2').textContent = 'Nueva guía para padres';
+    parentGuideFormSection.querySelector('h2').textContent = 'Nueva guÃ­a para padres';
     // Initialise default sections for a new guide
     DEFAULT_PARENT_SECTIONS.forEach((q) => addParentSection(q));
     parentGuideFormSection.classList.remove('hidden');
@@ -1049,7 +1358,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function openDoctorForm() {
     resetDoctorForm();
     editingDoctorId = null;
-    doctorGuideFormSection.querySelector('h2').textContent = 'Nueva guía para médicos';
+    doctorGuideFormSection.querySelector('h2').textContent = 'Nueva guÃ­a para mÃ©dicos';
     // Initialise default sections for a new doctor guide
     DEFAULT_DOCTOR_SECTIONS.forEach((q) => addDoctorSection(q));
     doctorGuideFormSection.classList.remove('hidden');
@@ -1068,6 +1377,7 @@ document.addEventListener('DOMContentLoaded', () => {
       parentSectionsContainer.removeChild(parentSectionsContainer.firstChild);
     }
     cancelParentEditBtn.classList.add('hidden');
+    editingParentPdf = null;
   }
 
   // Reset the doctor form
@@ -1077,11 +1387,14 @@ document.addEventListener('DOMContentLoaded', () => {
       doctorSectionsContainer.removeChild(doctorSectionsContainer.firstChild);
     }
     cancelDoctorEditBtn.classList.add('hidden');
+    editingDoctorPdf = null;
   }
 
   // Start editing a parent guide
   function startEditParent(guide) {
     editingParentId = guide.id;
+    // Preserve the existing PDF so it can be reused if no new file is uploaded
+    editingParentPdf = guide.pdf || null;
     // Populate basic fields
     parentGuideForm.parentTitle.value = guide.title;
     parentGuideForm.parentCategory.value = guide.category;
@@ -1095,7 +1408,7 @@ document.addEventListener('DOMContentLoaded', () => {
         addParentSection(section.question || '', section.answer || '', section.attachments || []);
       });
     }
-    parentGuideFormSection.querySelector('h2').textContent = 'Editar guía para padres';
+    parentGuideFormSection.querySelector('h2').textContent = 'Editar guÃ­a para padres';
     cancelParentEditBtn.classList.remove('hidden');
     parentGuideFormSection.classList.remove('hidden');
     parentLibrarySection.classList.add('hidden');
@@ -1108,6 +1421,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // Start editing a doctor guide
   function startEditDoctor(guide) {
     editingDoctorId = guide.id;
+    // Preserve the existing PDF for reuse during editing
+    editingDoctorPdf = guide.pdf || null;
     // Populate basic fields
     doctorGuideForm.doctorTitle.value = guide.title;
     doctorGuideForm.doctorCategory.value = guide.category;
@@ -1121,7 +1436,7 @@ document.addEventListener('DOMContentLoaded', () => {
         addDoctorSection(section.question || '', section.answer || '', section.attachments || []);
       });
     }
-    doctorGuideFormSection.querySelector('h2').textContent = 'Editar guía para médicos';
+    doctorGuideFormSection.querySelector('h2').textContent = 'Editar guÃ­a para mÃ©dicos';
     cancelDoctorEditBtn.classList.remove('hidden');
     doctorGuideFormSection.classList.remove('hidden');
     parentLibrarySection.classList.add('hidden');
@@ -1139,7 +1454,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let html = '';
     html += '<div class="modal-content">';
     html += '<span class="close-btn" id="closeModal">&times;</span>';
-    html += '<p class="author-detail">Elaborado por Dr. Oscar Hidalgo Mora – Pediatra</p>';
+    html += '<p class="author-detail">Elaborado por Dr.Â Oscar Hidalgo Mora â€“ Pediatra</p>';
     // Find a cover image from the first image attachment in sections
     let cover = null;
     if (guide.sections && Array.isArray(guide.sections)) {
@@ -1158,8 +1473,22 @@ document.addEventListener('DOMContentLoaded', () => {
       html += `<img src="${cover}" alt="Imagen de ${guide.title}" class="modal-image" />`;
     }
     html += `<h2>${guide.title}</h2>`;
-    html += `<p><strong>Categoría:</strong> ${guide.category}</p>`;
-    html += `<p><strong>Última actualización:</strong> ${guide.date}</p>`;
+    html += `<p><strong>CategorÃ­a:</strong> ${guide.category}</p>`;
+    html += `<p><strong>Ãšltima actualizaciÃ³n:</strong> ${guide.date}</p>`;
+    // If the guide includes a PDF attachment, display a link for users to download it
+    if (guide.pdf && guide.pdf.name && guide.pdf.data) {
+      html += `<p><strong>Documento PDF:</strong> <a href="${guide.pdf.data}" download="${guide.pdf.name}">${guide.pdf.name}</a></p>`;
+    }
+    // Download menu placed at the beginning of each guide view.  It opens
+    // into the two requested formats: PDF in A5 and Word.
+    html += '<div class="download-dropdown" style="margin-top: 10px; text-align:center; position:relative;">' +
+      '<button class="view-guide-btn download-main-btn">Descargar â–¾</button>' +
+      '<div class="download-menu hidden" style="margin-top:8px;">' +
+        '<button class="view-guide-btn download-pdf-btn">Descargar PDF (A5)</button>' +
+        '<button class="view-guide-btn download-word-btn" style="margin-left:8px;">Descargar Word</button>' +
+      '</div>' +
+    '</div>';
+
     // Render each section
     if (guide.sections && Array.isArray(guide.sections)) {
       guide.sections.forEach((sec) => {
@@ -1185,9 +1514,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       });
     }
-    // QR code container and download button placeholder
+    // QR code container placeholder.
     html += '<div id="qrContainer" style="margin-top:20px; text-align:center;"></div>';
-    html += '<button class="view-guide-btn download-pdf-btn">Descargar PDF</button>';
     html += '</div>';
     modal.innerHTML = html;
     document.body.appendChild(modal);
@@ -1215,9 +1543,22 @@ document.addEventListener('DOMContentLoaded', () => {
     modal.addEventListener('click', (e) => {
       if (e.target === modal) modal.remove();
     });
-    // PDF download
+    // Download dropdown behavior plus PDF and Word download actions
+    const downloadMainBtn = modal.querySelector('.download-main-btn');
+    const downloadMenu = modal.querySelector('.download-menu');
+    if (downloadMainBtn && downloadMenu) {
+      downloadMainBtn.addEventListener('click', () => {
+        downloadMenu.classList.toggle('hidden');
+      });
+    }
     const pdfBtn = modal.querySelector('.download-pdf-btn');
-    pdfBtn.addEventListener('click', () => printGuide(guide));
+    if (pdfBtn) {
+      pdfBtn.addEventListener('click', () => printGuide(guide));
+    }
+    const wordBtn = modal.querySelector('.download-word-btn');
+    if (wordBtn) {
+      wordBtn.addEventListener('click', () => downloadWord(guide));
+    }
   }
 
   /**
@@ -1236,15 +1577,15 @@ document.addEventListener('DOMContentLoaded', () => {
       const encoded = encodeURIComponent(qrText);
       const img = document.createElement('img');
       img.src = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encoded}`;
-      img.alt = 'QR para información de la guía';
+      img.alt = 'QR para informaciÃ³n de la guÃ­a';
       img.style.marginBottom = '6px';
       container.appendChild(img);
       const caption = document.createElement('div');
       caption.style.fontSize = '0.8rem';
-      caption.textContent = 'Escanee para ver información de la guía';
+      caption.textContent = 'Escanee para ver informaciÃ³n de la guÃ­a';
       container.appendChild(caption);
     } catch (err) {
-      container.textContent = '🔳';
+      container.textContent = 'ðŸ”³';
     }
   }
 
@@ -1310,7 +1651,7 @@ document.addEventListener('DOMContentLoaded', () => {
         reader.readAsArrayBuffer(file);
       } else if (ext === 'pdf') {
         // PDF extraction is limited; attempt to decode the file to text using
-        // UTF‑8 as a fallback.  Note: proper PDF parsing requires a library
+        // UTFâ€‘8 as a fallback.  Note: proper PDF parsing requires a library
         // like pdf.js; without it, some PDFs may not produce readable output.
         const reader = new FileReader();
         reader.onload = (e) => {
@@ -1323,7 +1664,7 @@ document.addEventListener('DOMContentLoaded', () => {
             text = '';
           }
           if (!text.trim()) {
-            alert('No se pudo extraer texto legible del archivo PDF. Conviértalo a texto e inténtelo de nuevo.');
+            alert('No se pudo extraer texto legible del archivo PDF. ConviÃ©rtalo a texto e intÃ©ntelo de nuevo.');
             return;
           }
           const summary = generateSummary(text);
@@ -1364,14 +1705,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // Split into sentences using a simple regex
     const sentences = cleaned.match(/[^.!?]+[.!?]*/g);
     if (!sentences || sentences.length === 0) {
-      return cleaned.slice(0, 300) + (cleaned.length > 300 ? '…' : '');
+      return cleaned.slice(0, 300) + (cleaned.length > 300 ? 'â€¦' : '');
     }
     // Combine up to three sentences
     const selected = sentences.slice(0, 3).join(' ').trim();
-    return selected || cleaned.slice(0, 300) + (cleaned.length > 300 ? '…' : '');
+    return selected || cleaned.slice(0, 300) + (cleaned.length > 300 ? 'â€¦' : '');
   }
 
-  // Override generateSummary with an improved frequency‑based summarisation algorithm.
+  // Override generateSummary with an improved frequencyâ€‘based summarisation algorithm.
   // This implementation counts word frequencies (excluding common stopwords in
   // Spanish and English), scores sentences based on these frequencies and
   // selects the top three sentences in their original order.  It replaces
@@ -1384,15 +1725,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const cleaned = text.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
     const sentences = cleaned.match(/[^.!?]+[.!?]*/g);
     if (!sentences || sentences.length === 0) {
-      return cleaned.slice(0, 300) + (cleaned.length > 300 ? '…' : '');
+      return cleaned.slice(0, 300) + (cleaned.length > 300 ? 'â€¦' : '');
     }
     // Combined Spanish and English stopwords
     const stopwords = new Set([
-      'a','al','algo','algunas','algunos','ante','antes','como','con','contra','cual','cuando','de','del','desde','donde','durante','e','el','ella','ellas','ellos','en','entre','era','erais','eran','eras','eres','es','esa','esas','ese','eso','esos','esta','estaba','estabais','estaban','estabas','estad','estada','estadas','estado','estados','estáis','estamos','están','estás','este','esto','estos','estoy','fue','fuera','fuerais','fueran','fueras','fueron','fui','fuimos','ha','habéis','había','habíais','habíamos','habían','habías','han','has','hasta','hay','haya','hayamos','hayan','hayas','he','hemos','hola','hube','hubiera','hubierais','hubieran','hubieras','hubieron','hubiese','hubieseis','hubiesen','hubieses','hubimos','hubiste','hubisteis','la','las','le','les','lo','los','más','me','mi','mis','mucho','muy','no','nos','nosotras','nosotros','nuestra','nuestras','nuestro','nuestros','o','os','otra','otros','para','pero','poco','por','porque','que','quedó','qué','sea','sean','ser','serán','si','siempre','sin','sobre','son','su','sus','también','tampoco','te','tendrá','tenéis','tenemos','tienen','tienes','todo','todos','tu','tus','un','una','unas','uno','unos','vosotras','vosotros','vuestra','vuestras','vuestro','vuestros','ya','yo',
+      'a','al','algo','algunas','algunos','ante','antes','como','con','contra','cual','cuando','de','del','desde','donde','durante','e','el','ella','ellas','ellos','en','entre','era','erais','eran','eras','eres','es','esa','esas','ese','eso','esos','esta','estaba','estabais','estaban','estabas','estad','estada','estadas','estado','estados','estÃ¡is','estamos','estÃ¡n','estÃ¡s','este','esto','estos','estoy','fue','fuera','fuerais','fueran','fueras','fueron','fui','fuimos','ha','habÃ©is','habÃ­a','habÃ­ais','habÃ­amos','habÃ­an','habÃ­as','han','has','hasta','hay','haya','hayamos','hayan','hayas','he','hemos','hola','hube','hubiera','hubierais','hubieran','hubieras','hubieron','hubiese','hubieseis','hubiesen','hubieses','hubimos','hubiste','hubisteis','la','las','le','les','lo','los','mÃ¡s','me','mi','mis','mucho','muy','no','nos','nosotras','nosotros','nuestra','nuestras','nuestro','nuestros','o','os','otra','otros','para','pero','poco','por','porque','que','quedÃ³','quÃ©','sea','sean','ser','serÃ¡n','si','siempre','sin','sobre','son','su','sus','tambiÃ©n','tampoco','te','tendrÃ¡','tenÃ©is','tenemos','tienen','tienes','todo','todos','tu','tus','un','una','unas','uno','unos','vosotras','vosotros','vuestra','vuestras','vuestro','vuestros','ya','yo',
       'the','and','or','but','for','nor','yet','so','a','an','any','are','as','at','be','been','being','by','can','could','did','do','does','doing','from','have','has','had','if','in','into','is','it','its','of','on','our','ours','that','their','them','these','they','this','to','was','were','what','when','where','which','who','will','with','would','you','your','yours','i','we','he','she','my','me','him','her','his','hers'
     ]);
     // Word frequency count
-    const allWords = cleaned.toLowerCase().match(/[a-záéíóúñü]+/gi) || [];
+    const allWords = cleaned.toLowerCase().match(/[a-zÃ¡Ã©Ã­Ã³ÃºÃ±Ã¼]+/gi) || [];
     const freq = {};
     allWords.forEach((w) => {
       if (!stopwords.has(w)) {
@@ -1401,7 +1742,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     // Score each sentence
     const scored = sentences.map((sent, idx) => {
-      const words = (sent.toLowerCase().match(/[a-záéíóúñü]+/gi) || []);
+      const words = (sent.toLowerCase().match(/[a-zÃ¡Ã©Ã­Ã³ÃºÃ±Ã¼]+/gi) || []);
       let score = 0;
       words.forEach((w) => {
         if (!stopwords.has(w) && freq[w]) {
@@ -1415,7 +1756,7 @@ document.addEventListener('DOMContentLoaded', () => {
     top.sort((a, b) => a.idx - b.idx);
     let summary = top.map((o) => o.sent).join(' ');
     if (!summary) {
-      summary = cleaned.slice(0, 300) + (cleaned.length > 300 ? '…' : '');
+      summary = cleaned.slice(0, 300) + (cleaned.length > 300 ? 'â€¦' : '');
     }
     return summary;
   };
@@ -1493,11 +1834,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const html = `
       <html>
       <head>
-        <title>Resumen de artículo</title>
+        <title>Resumen de artÃ­culo</title>
         ${styles}
       </head>
       <body>
-        <h1>Resumen de artículo</h1>
+        <h1>Resumen de artÃ­culo</h1>
         <p>${lastGeneratedSummary.replace(/\n/g, '<br/>')}</p>
       </body>
       </html>
@@ -1513,6 +1854,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const printWindow = window.open('', '', 'width=800,height=600');
     const styles = `
       <style>
+        /* Set A5 page size when printing.  The margin ensures content
+           does not touch the edges. */
+        @page { size: A5; margin: 15mm; }
         body { font-family: \"Segoe UI\", Tahoma, Geneva, Verdana, sans-serif; margin: 20px; }
         h1 { margin-top: 0; }
         h2 { color: #00695C; margin-bottom: 5px; }
@@ -1525,9 +1869,9 @@ document.addEventListener('DOMContentLoaded', () => {
     `;
     let content = '';
     content += `<h1>${guide.title}</h1>`;
-    content += `<p class="author">Elaborado por Dr. Oscar Hidalgo Mora – Pediatra</p>`;
-    content += `<p><strong>Categoría:</strong> ${guide.category}</p>`;
-    content += `<p><strong>Última actualización:</strong> ${guide.date}</p>`;
+    content += `<p class="author">Elaborado por Dr.Â Oscar Hidalgo Mora â€“ Pediatra</p>`;
+    content += `<p><strong>CategorÃ­a:</strong> ${guide.category}</p>`;
+    content += `<p><strong>Ãšltima actualizaciÃ³n:</strong> ${guide.date}</p>`;
     // Find a cover image
     let cover = null;
     if (guide.sections && Array.isArray(guide.sections)) {
@@ -1572,7 +1916,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
     // Disclaimer note
-    content += '<p style="font-size: 0.8rem; margin-top: 30px;">Este documento tiene fines educativos y no sustituye una valoración médica individual.</p>';
+    content += '<p style="font-size: 0.8rem; margin-top: 30px;">Este documento tiene fines educativos y no sustituye una valoraciÃ³n mÃ©dica individual.</p>';
     printWindow.document.write(`<!DOCTYPE html><html><head><title>${guide.title}</title>${styles}</head><body>${content}</body></html>`);
     printWindow.document.close();
     printWindow.onload = function () {
@@ -1580,6 +1924,94 @@ document.addEventListener('DOMContentLoaded', () => {
       printWindow.print();
       printWindow.close();
     };
+  }
+
+  /**
+   * Download the guide as a Word document (.doc).  This function
+   * constructs a simple HTML document encapsulating the guide
+   * content and uses a Blob with a MIME type of
+   * application/msword.  Modern versions of Microsoft Word and
+   * LibreOffice can open this file.  The content includes the
+   * dynamic sections with styled text, images and lists.  The
+   * filename is derived from the guide title.
+   *
+   * @param {Object} guide The guide object to convert into a Word file
+   */
+  function downloadWord(guide) {
+    // Build a standalone HTML document for the Word file
+    const styles = `
+      <style>
+        body { font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; margin: 20px; }
+        h1 { margin-top: 0; }
+        h2 { color: #00695C; margin-bottom: 5px; }
+        h3 { color: #00695C; margin-bottom: 3px; }
+        p { margin: 5px 0 15px 0; line-height: 1.4; }
+        img { max-width: 100%; height: auto; margin-bottom: 15px; border-radius: 8px; }
+        .author { font-style: italic; margin-bottom: 10px; }
+        ul { margin: 0 0 15px 20px; }
+      </style>
+    `;
+    let content = '';
+    content += `<h1>${guide.title}</h1>`;
+    content += `<p class="author">Elaborado por Dr.Â Oscar Hidalgo Mora â€“ Pediatra</p>`;
+    content += `<p><strong>CategorÃ­a:</strong> ${guide.category}</p>`;
+    content += `<p><strong>Ãšltima actualizaciÃ³n:</strong> ${guide.date}</p>`;
+    // Cover image
+    let cover = null;
+    if (guide.sections && Array.isArray(guide.sections)) {
+      outerCover: for (const sec of guide.sections) {
+        if (sec.attachments && Array.isArray(sec.attachments)) {
+          for (const att of sec.attachments) {
+            if (att.type === 'file' && att.data && att.data.startsWith('data:image')) {
+              cover = att.data;
+              break outerCover;
+            }
+          }
+        }
+      }
+    }
+    if (cover) {
+      content += `<img src="${cover}" alt="Imagen de ${guide.title}" />`;
+    }
+    // Sections
+    if (guide.sections && Array.isArray(guide.sections)) {
+      guide.sections.forEach((sec) => {
+        content += `<h2>${sec.question}</h2>`;
+        content += `<div>${sec.answer || ''}</div>`;
+        let fileList = '';
+        if (sec.attachments && sec.attachments.length > 0) {
+          sec.attachments.forEach((att) => {
+            if (att.type === 'file') {
+              if (att.data && att.data.startsWith('data:image')) {
+                content += `<img src="${att.data}" alt="Material" />`;
+              } else {
+                fileList += `<li>${att.name}</li>`;
+              }
+            } else if (att.type === 'video') {
+              content += `<p><strong>Video:</strong> ${att.link}</p>`;
+            }
+          });
+          if (fileList) {
+            content += `<ul>${fileList}</ul>`;
+          }
+        }
+      });
+    }
+    content += '<p style="font-size: 0.8rem; margin-top: 30px;">Este documento tiene fines educativos y no sustituye una valoraciÃ³n mÃ©dica individual.</p>';
+    // Compose the full HTML file
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8">${styles}</head><body>${content}</body></html>`;
+    // Create a Blob for Word.  Prepend BOM to preserve UTFâ€‘8 encoding.
+    const blob = new Blob(['\ufeff', html], { type: 'application/msword' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    // Sanitize the filename by replacing spaces and special characters
+    const safeTitle = guide.title.replace(/[^\w\d\- ]/g, '').trim().replace(/\s+/g, '_');
+    link.download = `${safeTitle || 'guia'}.doc`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   }
 
   /**
@@ -1657,8 +2089,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loginSection.classList.add('hidden');
     // Show objective section by default
     showSection('objective');
-    // Start the PediBot when the app is shown for the first time
-    startPediBot();
+    // The PediBot feature has been removed and is no longer started.
   }
 
   // Logout: clear session and return to login screen
